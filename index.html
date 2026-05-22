@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meu Painel</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login-screen" class="screen active">
+    <div class="login-box">
+      <h1>Meu Painel</h1>
+      <p class="subtitle">Acesso pessoal</p>
+      <input type="password" id="login-input" placeholder="Senha" autocomplete="current-password" />
+      <button onclick="entrar()">Entrar</button>
+      <p id="login-erro" class="erro"></p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app-screen" class="screen">
+
+    <nav>
+      <span class="logo">Meu Painel</span>
+      <div class="nav-tabs">
+        <button class="tab active" onclick="mostrarAba('tarefas')">Tarefas</button>
+        <button class="tab" onclick="mostrarAba('notas')">Notas</button>
+        <button class="tab" onclick="mostrarAba('links')">Links</button>
+      </div>
+      <button class="sair-btn" onclick="sair()">Sair</button>
+    </nav>
+
+    <!-- TAREFAS -->
+    <section id="aba-tarefas" class="aba active">
+      <div class="section-header">
+        <h2>Tarefas</h2>
+        <div class="add-row">
+          <input type="text" id="tarefa-input" placeholder="Nova tarefa..." onkeydown="if(event.key==='Enter')addTarefa()" />
+          <select id="tarefa-cat">
+            <option value="geral">Geral</option>
+            <option value="trabalho">Trabalho</option>
+            <option value="pessoal">Pessoal</option>
+            <option value="urgente">Urgente</option>
+          </select>
+          <button onclick="addTarefa()">+ Adicionar</button>
+        </div>
+      </div>
+      <div id="lista-tarefas" class="lista"></div>
+    </section>
+
+    <!-- NOTAS -->
+    <section id="aba-notas" class="aba">
+      <div class="section-header">
+        <h2>Notas</h2>
+        <button onclick="novaNota()">+ Nova Nota</button>
+      </div>
+      <div id="lista-notas" class="grid-notas"></div>
+    </section>
+
+    <!-- LINKS -->
+    <section id="aba-links" class="aba">
+      <div class="section-header">
+        <h2>Links</h2>
+        <div class="add-row">
+          <input type="text" id="link-titulo" placeholder="Nome..." />
+          <input type="url" id="link-url" placeholder="https://..." onkeydown="if(event.key==='Enter')addLink()" />
+          <select id="link-cat">
+            <option value="geral">Geral</option>
+            <option value="trabalho">Trabalho</option>
+            <option value="ferramentas">Ferramentas</option>
+            <option value="entretenimento">Entretenimento</option>
+          </select>
+          <button onclick="addLink()">+ Adicionar</button>
+        </div>
+      </div>
+      <div id="lista-links" class="grid-links"></div>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
