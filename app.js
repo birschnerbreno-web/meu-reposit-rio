@@ -1,5 +1,4 @@
 // ── CONFIGURAÇÃO ──────────────────────────────────────────
-// Troque a senha abaixo antes de publicar
 const SENHA = "Breno.1103";
 
 // ── AUTH ───────────────────────────────────────────────────
@@ -28,7 +27,6 @@ document.getElementById("login-input").addEventListener("keydown", e => {
   if (e.key === "Enter") entrar();
 });
 
-// Verificar se já está logado
 if (localStorage.getItem("painel_auth") === "1") {
   document.getElementById("login-screen").classList.remove("active");
   document.getElementById("app-screen").classList.add("active");
@@ -36,11 +34,11 @@ if (localStorage.getItem("painel_auth") === "1") {
 }
 
 // ── ABAS ───────────────────────────────────────────────────
-function mostrarAba(nome) {
+function mostrarAba(nome, btn) {
   document.querySelectorAll(".aba").forEach(a => a.classList.remove("active"));
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   document.getElementById("aba-" + nome).classList.add("active");
-  event.target.classList.add("active");
+  if (btn) btn.classList.add("active");
 }
 
 // ── STORAGE ────────────────────────────────────────────────
@@ -53,92 +51,301 @@ function carregar(chave, padrao) {
   return v ? JSON.parse(v) : padrao;
 }
 
-// ── TAREFAS ────────────────────────────────────────────────
-let tarefas = [];
+// ── KANBAN ─────────────────────────────────────────────────
+let colunas = [];
+let cards = [];
+let draggedCardId = null;
+let addingCardInColuna = null;
+let addingColuna = false;
 
-function addTarefa() {
-  const input = document.getElementById("tarefa-input");
-  const cat = document.getElementById("tarefa-cat").value;
-  const texto = input.value.trim();
-  if (!texto) return;
-  tarefas.push({ id: Date.now(), texto, cat, feita: false });
-  salvar("tarefas", tarefas);
-  input.value = "";
-  renderTarefas();
+const COR_COLUNAS = ["#6c63ff", "#ffb86c", "#50fa7b", "#ff5370", "#8be9fd", "#c084fc"];
+
+function initKanban() {
+  colunas = carregar("colunas", [
+    { id: 1, nome: "A Fazer", cor: "#6c63ff" },
+    { id: 2, nome: "Em Andamento", cor: "#ffb86c" },
+    { id: 3, nome: "Concluído", cor: "#50fa7b" }
+  ]);
+  cards = carregar("cards", []);
+  renderKanban();
 }
 
-function toggleTarefa(id) {
-  const t = tarefas.find(t => t.id === id);
-  if (t) t.feita = !t.feita;
-  salvar("tarefas", tarefas);
-  renderTarefas();
+function mostrarAddColuna() {
+  addingColuna = true;
+  addingCardInColuna = null;
+  renderKanban();
+  const input = document.getElementById("new-col-input");
+  if (input) input.focus();
 }
 
-function deletarTarefa(id) {
-  tarefas = tarefas.filter(t => t.id !== id);
-  salvar("tarefas", tarefas);
-  renderTarefas();
-}
-
-function renderTarefas() {
-  const lista = document.getElementById("lista-tarefas");
-  if (!tarefas.length) {
-    lista.innerHTML = '<p class="vazio">Nenhuma tarefa ainda. Adicione uma acima!</p>';
-    return;
+function confirmarAddColuna() {
+  const input = document.getElementById("new-col-input");
+  const nome = input ? input.value.trim() : "";
+  if (nome) {
+    const cor = COR_COLUNAS[colunas.length % COR_COLUNAS.length];
+    colunas.push({ id: Date.now(), nome, cor });
+    salvar("colunas", colunas);
   }
-  const pendentes = tarefas.filter(t => !t.feita);
-  const feitas = tarefas.filter(t => t.feita);
-  const ordenadas = [...pendentes, ...feitas];
-  lista.innerHTML = ordenadas.map(t => `
-    <div class="tarefa-item ${t.feita ? "feita" : ""}">
-      <input type="checkbox" ${t.feita ? "checked" : ""} onchange="toggleTarefa(${t.id})" />
-      <span class="tarefa-texto">${escHtml(t.texto)}</span>
-      <span class="tag tag-${t.cat}">${t.cat}</span>
-      <button class="del-btn" onclick="deletarTarefa(${t.id})" title="Remover">×</button>
-    </div>
-  `).join("");
+  addingColuna = false;
+  renderKanban();
 }
 
-// ── NOTAS ─────────────────────────────────────────────────
-let notas = [];
-
-function novaNota() {
-  const nota = { id: Date.now(), titulo: "", conteudo: "", atualizada: Date.now() };
-  notas.unshift(nota);
-  salvar("notas", notas);
-  renderNotas();
+function cancelarAddColuna() {
+  addingColuna = false;
+  renderKanban();
 }
 
-function atualizarNota(id, campo, valor) {
-  const n = notas.find(n => n.id === id);
-  if (n) { n[campo] = valor; n.atualizada = Date.now(); }
-  salvar("notas", notas);
+function deletarColuna(id) {
+  if (!confirm("Deletar esta coluna e todos os seus cards?")) return;
+  colunas = colunas.filter(c => c.id !== id);
+  cards = cards.filter(c => c.colunaId !== id);
+  salvar("colunas", colunas);
+  salvar("cards", cards);
+  renderKanban();
 }
 
-function deletarNota(id) {
-  notas = notas.filter(n => n.id !== id);
-  salvar("notas", notas);
-  renderNotas();
+function mostrarAddCard(colunaId) {
+  addingCardInColuna = colunaId;
+  renderKanban();
+  const input = document.getElementById("new-card-input-" + colunaId);
+  if (input) input.focus();
 }
 
-function renderNotas() {
-  const grid = document.getElementById("lista-notas");
-  if (!notas.length) {
-    grid.innerHTML = '<p class="vazio">Nenhuma nota ainda. Clique em "+ Nova Nota"!</p>';
-    return;
+function cancelarAddCard() {
+  addingCardInColuna = null;
+  renderKanban();
+}
+
+function confirmarAddCard(colunaId) {
+  const input = document.getElementById("new-card-input-" + colunaId);
+  const titulo = input ? input.value.trim() : "";
+  if (titulo) {
+    cards.push({ id: Date.now(), titulo, desc: "", colunaId });
+    salvar("cards", cards);
   }
-  grid.innerHTML = notas.map(n => `
-    <div class="nota-card">
-      <input class="nota-titulo" value="${escHtml(n.titulo)}" placeholder="Título..."
-        oninput="atualizarNota(${n.id}, 'titulo', this.value)" />
-      <textarea class="nota-conteudo" placeholder="Escreva aqui..."
-        oninput="atualizarNota(${n.id}, 'conteudo', this.value)">${escHtml(n.conteudo)}</textarea>
-      <div class="nota-footer">
-        <span>${formatarData(n.atualizada)}</span>
-        <button class="del-btn" onclick="deletarNota(${n.id})" title="Remover">× Excluir</button>
+  addingCardInColuna = null;
+  renderKanban();
+}
+
+function deletarCard(id) {
+  cards = cards.filter(c => c.id !== id);
+  salvar("cards", cards);
+  renderKanban();
+}
+
+function dragStart(e, cardId) {
+  draggedCardId = cardId;
+  e.dataTransfer.effectAllowed = "move";
+  setTimeout(() => {
+    const el = document.getElementById("card-" + cardId);
+    if (el) el.classList.add("dragging");
+  }, 0);
+}
+
+function dragEnd(cardId) {
+  const el = document.getElementById("card-" + cardId);
+  if (el) el.classList.remove("dragging");
+}
+
+function dragOver(e, colunaId) {
+  e.preventDefault();
+  document.querySelectorAll(".kanban-col").forEach(c => c.classList.remove("drag-over"));
+  const col = document.getElementById("col-" + colunaId);
+  if (col) col.classList.add("drag-over");
+}
+
+function dragLeave(colunaId) {
+  const col = document.getElementById("col-" + colunaId);
+  if (col) col.classList.remove("drag-over");
+}
+
+function drop(e, colunaId) {
+  e.preventDefault();
+  document.querySelectorAll(".kanban-col").forEach(c => c.classList.remove("drag-over"));
+  if (draggedCardId === null) return;
+  const card = cards.find(c => c.id === draggedCardId);
+  if (card) { card.colunaId = colunaId; salvar("cards", cards); }
+  draggedCardId = null;
+  renderKanban();
+}
+
+function renderKanban() {
+  const board = document.getElementById("kanban-board");
+  let html = colunas.map(col => {
+    const colCards = cards.filter(c => c.colunaId === col.id);
+    const showForm = addingCardInColuna === col.id;
+    return `
+      <div class="kanban-col" id="col-${col.id}"
+        ondragover="dragOver(event,${col.id})"
+        ondragleave="dragLeave(${col.id})"
+        ondrop="drop(event,${col.id})">
+        <div class="kanban-col-header" style="border-top:3px solid ${col.cor}">
+          <span class="col-nome">${escHtml(col.nome)}</span>
+          <span class="col-count">${colCards.length}</span>
+          <button class="del-btn" onclick="deletarColuna(${col.id})">×</button>
+        </div>
+        <div class="kanban-cards">
+          ${colCards.map(card => `
+            <div class="kanban-card" id="card-${card.id}" draggable="true"
+              ondragstart="dragStart(event,${card.id})"
+              ondragend="dragEnd(${card.id})">
+              <div class="card-titulo">${escHtml(card.titulo)}</div>
+              ${card.desc ? `<div class="card-desc">${escHtml(card.desc)}</div>` : ""}
+              <div class="card-footer">
+                <button class="del-btn" onclick="deletarCard(${card.id})">× Remover</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+        ${showForm ? `
+          <div class="add-card-form">
+            <textarea id="new-card-input-${col.id}" placeholder="Título do card..."
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();confirmarAddCard(${col.id})}"
+              rows="3"></textarea>
+            <div class="add-card-actions">
+              <button class="btn-confirm" onclick="confirmarAddCard(${col.id})">Adicionar</button>
+              <button class="btn-cancel" onclick="cancelarAddCard()">Cancelar</button>
+            </div>
+          </div>
+        ` : `
+          <button class="add-card-btn" onclick="mostrarAddCard(${col.id})">+ Adicionar card</button>
+        `}
       </div>
+    `;
+  }).join("");
+
+  if (addingColuna) {
+    html += `
+      <div class="kanban-add-col">
+        <div class="add-col-form">
+          <input id="new-col-input" placeholder="Nome da coluna..."
+            onkeydown="if(event.key==='Enter')confirmarAddColuna();if(event.key==='Escape')cancelarAddColuna()" />
+          <div class="add-card-actions">
+            <button class="btn-confirm" onclick="confirmarAddColuna()">Criar</button>
+            <button class="btn-cancel" onclick="cancelarAddColuna()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="kanban-add-col" onclick="mostrarAddColuna()">
+        <span style="font-size:28px;color:var(--text2)">+</span>
+        <span style="font-size:13px;color:var(--text2)">Nova Coluna</span>
+      </div>
+    `;
+  }
+
+  board.innerHTML = html;
+}
+
+// ── NOTION NOTAS ───────────────────────────────────────────
+let paginas = [];
+let paginaAtiva = null;
+
+const EMOJIS = ["📄","📝","💡","🎯","📌","🔖","📊","🗒️","✅","🧠","🌟","🔥"];
+
+function initNotas() {
+  paginas = carregar("paginas", []);
+  paginaAtiva = carregar("paginaAtiva", null);
+  renderSidebar();
+  if (paginaAtiva && paginas.find(p => p.id === paginaAtiva)) {
+    abrirPagina(paginaAtiva);
+  }
+}
+
+function novaPagina() {
+  const emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+  const p = { id: Date.now(), titulo: "", conteudo: "", emoji, atualizada: Date.now() };
+  paginas.unshift(p);
+  salvar("paginas", paginas);
+  abrirPagina(p.id);
+  renderSidebar();
+  setTimeout(() => document.getElementById("editor-titulo").focus(), 50);
+}
+
+function abrirPagina(id) {
+  paginaAtiva = id;
+  salvar("paginaAtiva", id);
+  const p = paginas.find(p => p.id === id);
+  if (!p) return;
+
+  document.getElementById("editor-vazio").style.display = "none";
+  document.getElementById("editor-content").style.display = "flex";
+  document.getElementById("editor-titulo").value = p.titulo;
+  document.getElementById("editor-body").innerHTML = p.conteudo;
+
+  renderSidebar();
+}
+
+function salvarPaginaAtiva() {
+  if (!paginaAtiva) return;
+  const p = paginas.find(p => p.id === paginaAtiva);
+  if (!p) return;
+  p.titulo = document.getElementById("editor-titulo").value;
+  p.conteudo = document.getElementById("editor-body").innerHTML;
+  p.atualizada = Date.now();
+  salvar("paginas", paginas);
+  renderSidebar();
+}
+
+function deletarPaginaAtiva() {
+  if (!paginaAtiva) return;
+  if (!confirm("Excluir esta página?")) return;
+  paginas = paginas.filter(p => p.id !== paginaAtiva);
+  salvar("paginas", paginas);
+  paginaAtiva = null;
+  salvar("paginaAtiva", null);
+  document.getElementById("editor-vazio").style.display = "flex";
+  document.getElementById("editor-content").style.display = "none";
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const lista = document.getElementById("lista-paginas");
+  if (!paginas.length) {
+    lista.innerHTML = '<p class="sidebar-vazio">Nenhuma página ainda</p>';
+    return;
+  }
+  lista.innerHTML = paginas.map(p => `
+    <div class="pagina-item ${p.id === paginaAtiva ? "active" : ""}" onclick="abrirPagina(${p.id})">
+      <span class="pagina-emoji">${p.emoji || "📄"}</span>
+      <span class="pagina-titulo">${escHtml(p.titulo) || "Sem título"}</span>
+      <button class="del-btn" onclick="event.stopPropagation();deletarPagina(${p.id})">×</button>
     </div>
   `).join("");
+}
+
+function deletarPagina(id) {
+  if (!confirm("Excluir esta página?")) return;
+  paginas = paginas.filter(p => p.id !== id);
+  salvar("paginas", paginas);
+  if (paginaAtiva === id) {
+    paginaAtiva = null;
+    salvar("paginaAtiva", null);
+    document.getElementById("editor-vazio").style.display = "flex";
+    document.getElementById("editor-content").style.display = "none";
+  }
+  renderSidebar();
+}
+
+function fmt(cmd, val) {
+  document.getElementById("editor-body").focus();
+  document.execCommand(cmd, false, val || null);
+  salvarPaginaAtiva();
+}
+
+function inserirDivisor() {
+  document.getElementById("editor-body").focus();
+  document.execCommand("insertHTML", false, "<hr><br>");
+  salvarPaginaAtiva();
+}
+
+function handleEditorKey(e) {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    document.execCommand("insertHTML", false, "&nbsp;&nbsp;&nbsp;&nbsp;");
+  }
 }
 
 // ── LINKS ─────────────────────────────────────────────────
@@ -149,8 +356,7 @@ function addLink() {
   const url = document.getElementById("link-url").value.trim();
   const cat = document.getElementById("link-cat").value;
   if (!url) return;
-  const nome = titulo || url;
-  links.push({ id: Date.now(), nome, url: normalizarUrl(url), cat });
+  links.push({ id: Date.now(), nome: titulo || url, url: normalizarUrl(url), cat });
   salvar("links", links);
   document.getElementById("link-titulo").value = "";
   document.getElementById("link-url").value = "";
@@ -170,27 +376,24 @@ function renderLinks() {
     return;
   }
   const grupos = {};
-  links.forEach(l => {
-    if (!grupos[l.cat]) grupos[l.cat] = [];
-    grupos[l.cat].push(l);
-  });
+  links.forEach(l => { if (!grupos[l.cat]) grupos[l.cat] = []; grupos[l.cat].push(l); });
   let html = "";
   for (const [cat, itens] of Object.entries(grupos)) {
-    html += `<div style="grid-column:1/-1"><h3 style="color:var(--text2);font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">${cat}</h3></div>`;
+    html += `<div class="link-cat-header">${cat}</div>`;
     html += itens.map(l => {
-      const dominio = getDominio(l.url);
+      const dom = getDominio(l.url);
       return `
         <div class="link-card">
           <div class="link-favicon">
-            <img src="https://www.google.com/s2/favicons?domain=${dominio}&sz=32"
+            <img src="https://www.google.com/s2/favicons?domain=${dom}&sz=32"
               onerror="this.parentElement.textContent='🔗'" />
           </div>
           <div class="link-info">
             <div class="link-nome">${escHtml(l.nome)}</div>
-            <div class="link-url-text">${escHtml(dominio)}</div>
+            <div class="link-url-text">${escHtml(dom)}</div>
           </div>
           <a href="${escHtml(l.url)}" target="_blank" class="link-abrir">Abrir</a>
-          <button class="del-btn" onclick="deletarLink(${l.id})" title="Remover">×</button>
+          <button class="del-btn" onclick="deletarLink(${l.id})">×</button>
         </div>
       `;
     }).join("");
@@ -201,31 +404,22 @@ function renderLinks() {
 // ── UTILS ─────────────────────────────────────────────────
 function escHtml(str) {
   return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function normalizarUrl(url) {
-  if (!url.startsWith("http://") && !url.startsWith("https://")) return "https://" + url;
-  return url;
+  return url.startsWith("http") ? url : "https://" + url;
 }
 
 function getDominio(url) {
   try { return new URL(url).hostname; } catch { return url; }
 }
 
-function formatarData(ts) {
-  return new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
 // ── INIT ──────────────────────────────────────────────────
 function carregarTudo() {
-  tarefas = carregar("tarefas", []);
-  notas = carregar("notas", []);
+  initKanban();
+  initNotas();
   links = carregar("links", []);
-  renderTarefas();
-  renderNotas();
   renderLinks();
 }
