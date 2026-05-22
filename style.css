@@ -88,7 +88,7 @@ body {
 .erro { color: var(--danger); font-size: 13px; min-height: 18px; }
 
 /* APP */
-#app-screen { flex-direction: column; min-height: 100vh; }
+#app-screen { flex-direction: column; height: 100vh; overflow: hidden; }
 
 nav {
   display: flex;
@@ -145,7 +145,7 @@ nav {
 
 /* ABAS */
 .aba { display: none; }
-.aba.active { display: flex; flex-direction: column; }
+.aba.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 /* BUTTONS */
 .btn-primary {
@@ -388,13 +388,15 @@ nav {
 /* ─── NOTION ─────────────────────────────────────── */
 #aba-notas {
   flex-direction: row !important;
-  height: calc(100vh - 60px);
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .notion-layout {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -481,6 +483,7 @@ nav {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -501,6 +504,7 @@ nav {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -553,12 +557,14 @@ nav {
 
 .editor-body {
   flex: 1;
+  min-height: 0;
   padding: 8px 48px 48px;
   outline: none;
   overflow-y: auto;
   font-size: 15px;
   line-height: 1.7;
   color: var(--text);
+  cursor: text;
 }
 
 .editor-body:empty::before {
