@@ -25,38 +25,64 @@
     <nav>
       <span class="logo">Meu Painel</span>
       <div class="nav-tabs">
-        <button class="tab active" onclick="mostrarAba('tarefas')">Tarefas</button>
-        <button class="tab" onclick="mostrarAba('notas')">Notas</button>
-        <button class="tab" onclick="mostrarAba('links')">Links</button>
+        <button class="tab active" onclick="mostrarAba('tarefas', this)">Tarefas</button>
+        <button class="tab" onclick="mostrarAba('notas', this)">Notas</button>
+        <button class="tab" onclick="mostrarAba('links', this)">Links</button>
       </div>
       <button class="sair-btn" onclick="sair()">Sair</button>
     </nav>
 
-    <!-- TAREFAS -->
+    <!-- TAREFAS (KANBAN) -->
     <section id="aba-tarefas" class="aba active">
-      <div class="section-header">
+      <div class="kanban-topbar">
         <h2>Tarefas</h2>
-        <div class="add-row">
-          <input type="text" id="tarefa-input" placeholder="Nova tarefa..." onkeydown="if(event.key==='Enter')addTarefa()" />
-          <select id="tarefa-cat">
-            <option value="geral">Geral</option>
-            <option value="trabalho">Trabalho</option>
-            <option value="pessoal">Pessoal</option>
-            <option value="urgente">Urgente</option>
-          </select>
-          <button onclick="addTarefa()">+ Adicionar</button>
-        </div>
+        <button class="btn-primary" onclick="mostrarAddColuna()">+ Nova Coluna</button>
       </div>
-      <div id="lista-tarefas" class="lista"></div>
+      <div id="kanban-board" class="kanban-board"></div>
     </section>
 
-    <!-- NOTAS -->
+    <!-- NOTAS (NOTION) -->
     <section id="aba-notas" class="aba">
-      <div class="section-header">
-        <h2>Notas</h2>
-        <button onclick="novaNota()">+ Nova Nota</button>
+      <div class="notion-layout">
+        <aside class="notion-sidebar">
+          <div class="notion-sidebar-header">
+            <span>Páginas</span>
+            <button onclick="novaPagina()" title="Nova página">+</button>
+          </div>
+          <div id="lista-paginas"></div>
+        </aside>
+        <div class="notion-main">
+          <div id="editor-vazio" class="editor-vazio">
+            <div class="editor-vazio-icon">📝</div>
+            <p>Nenhuma página selecionada</p>
+            <button class="btn-primary" onclick="novaPagina()">+ Nova Página</button>
+          </div>
+          <div id="editor-content" class="editor-content" style="display:none">
+            <div class="editor-toolbar">
+              <button onclick="fmt('bold')" title="Negrito"><b>B</b></button>
+              <button onclick="fmt('italic')" title="Itálico"><i>I</i></button>
+              <button onclick="fmt('underline')" title="Sublinhado"><u>U</u></button>
+              <span class="toolbar-sep"></span>
+              <button onclick="fmt('formatBlock','h1')" title="Título 1">H1</button>
+              <button onclick="fmt('formatBlock','h2')" title="Título 2">H2</button>
+              <button onclick="fmt('formatBlock','h3')" title="Título 3">H3</button>
+              <span class="toolbar-sep"></span>
+              <button onclick="fmt('insertUnorderedList')" title="Lista">•</button>
+              <button onclick="fmt('insertOrderedList')" title="Lista numerada">1.</button>
+              <span class="toolbar-sep"></span>
+              <button onclick="fmt('formatBlock','blockquote')" title="Citação">"</button>
+              <button onclick="inserirDivisor()" title="Divisor">—</button>
+              <span class="toolbar-sep"></span>
+              <button onclick="deletarPaginaAtiva()" class="toolbar-del" title="Excluir página">🗑</button>
+            </div>
+            <input id="editor-titulo" class="editor-titulo" placeholder="Título da página..." oninput="salvarPaginaAtiva()" />
+            <div id="editor-body" class="editor-body" contenteditable="true"
+              oninput="salvarPaginaAtiva()"
+              onkeydown="handleEditorKey(event)"
+              data-placeholder="Comece a escrever..."></div>
+          </div>
+        </div>
       </div>
-      <div id="lista-notas" class="grid-notas"></div>
     </section>
 
     <!-- LINKS -->
@@ -72,7 +98,7 @@
             <option value="ferramentas">Ferramentas</option>
             <option value="entretenimento">Entretenimento</option>
           </select>
-          <button onclick="addLink()">+ Adicionar</button>
+          <button class="btn-primary" onclick="addLink()">+ Adicionar</button>
         </div>
       </div>
       <div id="lista-links" class="grid-links"></div>
